@@ -45,7 +45,16 @@ Authentication:
 
 ### Response (stream: true)
 
-Server-Sent Events stream:
+Server-Sent Events stream.
+
+Event order:
+- `route`
+- `meta`
+- `token` events as the model produces output
+- `sources` when the search route returns references
+- `done`
+
+Token payloads are forwarded from the live model stream. They are not re-chunked into words on the server, so `content` may contain partial words or multi-token fragments.
 
 ```
 event: route
@@ -58,7 +67,7 @@ event: token
 data: {"content": "The ", "type": "token"}
 
 event: token
-data: {"content": "current ", "type": "token"}
+data: {"content": " current ", "type": "token"}
 
 event: sources
 data: {"sources": [{"title": "...", "url": "...", "snippet": "..."}]}
