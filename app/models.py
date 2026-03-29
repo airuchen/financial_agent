@@ -29,6 +29,9 @@ class QueryResponse(BaseModel):
     response: str
     route: str
     sources: list[Source] = Field(default_factory=list)
+    cache_hit: bool = False
+    cache_tier: str | None = None
+    retrieved_at: str | None = None
 
 
 class RouteDecision(BaseModel):

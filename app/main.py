@@ -41,6 +41,21 @@ async def lifespan(app: FastAPI):
 
     app.state.graph = build_graph(llm, tavily_client)
     app.state.provider = settings.llm_provider
+    app.state.model = settings.llm_model
+    app.state.cache_prompt_revision = settings.cache_prompt_revision
+    app.state.cache_ttl_direct_sec = settings.cache_ttl_direct_sec
+    app.state.cache_ttl_search_results_sec = settings.cache_ttl_search_results_sec
+    app.state.cache_ttl_search_answer_sec = settings.cache_ttl_search_answer_sec
+    app.state.cache = None
+
+    if settings.cache_enabled:
+        try:
+            from app.cache import RedisCache
+
+            app.state.cache = await RedisCache.create(settings.redis_url)
+            logger.info("Redis cache enabled")
+        except Exception:
+            logger.exception("Redis cache unavailable; continuing without cache")
 
     logger.info(
         "Agent ready — provider=%s, model=%s",

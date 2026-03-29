@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     cors_allow_credentials: bool = False
 
+    # Cache
+    cache_enabled: bool = True
+    redis_url: str = "redis://localhost:6379/0"
+    cache_prompt_revision: str = "v1"
+    cache_ttl_direct_sec: int = 86400
+    cache_ttl_search_results_sec: int = 900
+    cache_ttl_search_answer_sec: int = 300
+
     @model_validator(mode="after")
     def validate_required_keys(self):
         """Validate provider-dependent and required external API credentials."""

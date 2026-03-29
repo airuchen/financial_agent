@@ -26,6 +26,9 @@ Submit a financial research query to the agent.
 {
   "response": "The current EUR/USD exchange rate is approximately 1.0847...",
   "route": "search",
+  "cache_hit": false,
+  "cache_tier": "none",
+  "retrieved_at": null,
   "sources": [
     {
       "title": "Reuters - Foreign Exchange",
@@ -42,7 +45,10 @@ Server-Sent Events stream:
 
 ```
 event: route
-data: {"route": "search", "reasoning": "Query asks for current exchange rate"}
+data: {"route": "search"}
+
+event: meta
+data: {"cache_hit": false, "cache_tier": "none", "retrieved_at": null}
 
 event: token
 data: {"content": "The ", "type": "token"}
@@ -54,7 +60,7 @@ event: sources
 data: {"sources": [{"title": "...", "url": "...", "snippet": "..."}]}
 
 event: done
-data: {"full_response": "The current EUR/USD exchange rate is..."}
+data: {"full_response": "The current EUR/USD exchange rate is...", "cache_hit": false, "cache_tier": "none", "retrieved_at": null}
 ```
 
 ### Error Responses
