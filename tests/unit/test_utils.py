@@ -21,9 +21,7 @@ def test_format_sse_event_done():
 
 def test_format_sse_event_sources():
     """SSE sources event formats source list."""
-    sources = [
-        {"title": "Reuters", "url": "https://reuters.com", "snippet": "EUR/USD"}
-    ]
+    sources = [{"title": "Reuters", "url": "https://reuters.com", "snippet": "EUR/USD"}]
     result = format_sse_event("sources", {"sources": sources})
     assert "event: sources" in result
     data_line = result.split("\n")[1]

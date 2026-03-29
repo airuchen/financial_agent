@@ -120,9 +120,7 @@ async def query(request: Request, body: QueryRequest):
                     request.app.state, "cache_ttl_search_answer_sec", 300
                 ),
             )
-            return QueryResponse(
-                **response_data.model_dump()
-            )
+            return QueryResponse(**response_data.model_dump())
     except HTTPException:
         raise
     except TimeoutError:
@@ -156,8 +154,7 @@ async def _stream_response(graph, state: dict[str, Any], cached_meta: dict[str, 
 
     if result.get("sources"):
         sources_data = [
-            s.model_dump() if hasattr(s, "model_dump") else s
-            for s in result["sources"]
+            s.model_dump() if hasattr(s, "model_dump") else s for s in result["sources"]
         ]
         yield format_sse_event("sources", {"sources": sources_data})
 

@@ -9,8 +9,7 @@ from app.cache_policy import (
 
 def test_classify_critical_market_query():
     assert (
-        classify_cache_policy("What is the current EUR/USD rate?")
-        == "critical_market"
+        classify_cache_policy("What is the current EUR/USD rate?") == "critical_market"
     )
 
 
