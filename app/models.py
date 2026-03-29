@@ -32,6 +32,7 @@ class QueryResponse(BaseModel):
     cache_hit: bool = False
     cache_tier: str | None = None
     retrieved_at: str | None = None
+    stale_results: bool = False
 
 
 class RouteDecision(BaseModel):

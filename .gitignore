@@ -9,3 +9,4 @@ build/
 .pytest_cache/
 .superpowers/
 docs/doxygen_output/
+docs/_build/

@@ -5,7 +5,21 @@ from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.cache_policy import CacheKeyContext, direct_answer_cache_key
+from app.agent.resilience import (
+    LLMBackendError,
+    LLMProviderError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    SearchBackendError,
+    SearchProviderError,
+    SearchRateLimitError,
+    SearchTimeoutError,
+)
+from app.cache_policy import (
+    CacheKeyContext,
+    direct_answer_cache_key,
+    search_results_cache_key,
+)
 from app.main import create_app
 from app.models import Source
 
@@ -147,6 +161,72 @@ async def test_query_json_writes_cache_for_noncritical_search(app, mock_graph):
 
     assert response.status_code == 200
     assert len(cache.set_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_query_json_marks_reused_search_results_as_stale(app, mock_graph):
+    """Cached search-result reuse should surface stale-result metadata."""
+    query = "Summarize last week Fed decision"
+    cache = FakeCache(
+        {
+            search_results_cache_key(query): {
+                "results": [
+                    {
+                        "title": "Reuters",
+                        "url": "https://reuters.com",
+                        "content": "ECB updated guidance",
+                    }
+                ],
+                "retrieved_at": "2026-03-29T00:00:00+00:00",
+            }
+        }
+    )
+    app.state.cache = cache
+    app.state.model = "test-model"
+    app.state.cache_prompt_revision = "v1"
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": query, "stream": False},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["cache_hit"] is True
+    assert data["cache_tier"] == "search_results"
+    assert data["stale_results"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("raised_error", "status_code", "detail_code"),
+    [
+        (SearchTimeoutError(), 504, "search_timeout"),
+        (SearchRateLimitError(), 429, "search_rate_limited"),
+        (SearchBackendError(), 503, "search_backend_unavailable"),
+        (SearchProviderError(), 503, "search_provider_failure"),
+        (LLMTimeoutError(), 504, "llm_timeout"),
+        (LLMRateLimitError(), 429, "llm_rate_limited"),
+        (LLMBackendError(), 503, "llm_backend_unavailable"),
+        (LLMProviderError(), 503, "llm_provider_failure"),
+    ],
+)
+async def test_query_maps_external_failures(
+    app, mock_graph, raised_error, status_code, detail_code
+):
+    """POST /query should map typed provider failures to stable HTTP responses."""
+    mock_graph.ainvoke = AsyncMock(side_effect=raised_error)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "Current EUR/USD rate", "stream": False},
+        )
+
+    assert response.status_code == status_code
+    assert response.json()["detail"]["code"] == detail_code
 
 
 @pytest.mark.asyncio

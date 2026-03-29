@@ -157,7 +157,7 @@ LLM_TIMEOUT=30
 
 - [ ] **Step 4: Create .gitignore**
 
-```gitignore
+```text
 __pycache__/
 *.py[cod]
 .env
@@ -2232,10 +2232,10 @@ uv run pytest tests/e2e/ -v            # E2E tests (requires running container)
 
 ## Documentation
 
-- [API Reference](docs/api.md)
-- [Configuration Guide](docs/configuration.md)
-- [Deployment Architecture](docs/deployment.md)
-- [Architecture Decision Records](docs/adr/)
+- [API Reference](../../api.md)
+- [Configuration Guide](../../configuration.md)
+- [Deployment Architecture](../../deployment.md)
+- [Architecture Decision Records](../../adr/index.md)
 
 ## Architecture
 
@@ -2244,7 +2244,8 @@ POST /query → FastAPI → LangGraph:
   router_node → [search_agent | direct_response] → format_response → SSE/JSON response
 ```
 
-See [ADR-001](docs/adr/001-langgraph-explicit-router.md) for the routing design rationale.
+See [ADR-001](../../adr/001-langgraph-explicit-router.md) for the routing
+design rationale.
 ```
 
 - [ ] **Step 2: Commit**

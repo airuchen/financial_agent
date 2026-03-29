@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+from app.agent.resilience import ExternalServiceError
 from app.cache_policy import (
     CacheKeyContext,
     classify_cache_policy,
@@ -46,7 +47,12 @@ async def query(request: Request, body: QueryRequest):
         "route": "",
         "sources": [],
     }
-    cached_meta = {"cache_hit": False, "cache_tier": "none", "retrieved_at": None}
+    cached_meta = {
+        "cache_hit": False,
+        "cache_tier": "none",
+        "retrieved_at": None,
+        "stale_results": False,
+    }
 
     try:
         guard = getattr(request.app.state, "guard", None)
@@ -77,11 +83,13 @@ async def query(request: Request, body: QueryRequest):
                         "cache_hit": True,
                         "cache_tier": "search_results",
                         "retrieved_at": cached_results.get("retrieved_at"),
+                        "stale_results": True,
                     }
 
+        result = await graph.ainvoke(state)
         if body.stream:
             return StreamingResponse(
-                _stream_response(graph, state, cached_meta),
+                _stream_response(result, cached_meta),
                 media_type="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
@@ -90,7 +98,6 @@ async def query(request: Request, body: QueryRequest):
                 },
             )
         else:
-            result = await graph.ainvoke(state)
             final_message = result["messages"][-1].content
             sources = [
                 Source(**s) if isinstance(s, dict) else s
@@ -103,6 +110,7 @@ async def query(request: Request, body: QueryRequest):
                 cache_hit=cached_meta["cache_hit"],
                 cache_tier=cached_meta["cache_tier"],
                 retrieved_at=cached_meta["retrieved_at"],
+                stale_results=cached_meta["stale_results"],
             )
             await _maybe_write_cache(
                 cache=cache,
@@ -123,26 +131,32 @@ async def query(request: Request, body: QueryRequest):
             return QueryResponse(**response_data.model_dump())
     except HTTPException:
         raise
+    except ExternalServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+            headers=exc.headers,
+        ) from None
     except TimeoutError:
-        raise HTTPException(status_code=504, detail="Request timed out") from None
+        raise HTTPException(
+            status_code=504,
+            detail={"code": "request_timeout", "message": "Request timed out"},
+        ) from None
     except Exception:
         logger.exception("Unexpected error processing query")
         raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
-async def _stream_response(graph, state: dict[str, Any], cached_meta: dict[str, Any]):
+async def _stream_response(result: dict[str, Any], cached_meta: dict[str, Any]):
     """Generate SSE events from the agent graph.
 
     Args:
-        graph: The compiled LangGraph.
-        state: Prepared graph state.
+        result: Result returned by the compiled LangGraph.
         cached_meta: Cache metadata for the current request.
 
     Yields:
         Formatted SSE event strings.
     """
-    result = await graph.ainvoke(state)
-
     route = result.get("route", "")
     yield format_sse_event("route", {"route": route})
     yield format_sse_event("meta", cached_meta)
@@ -165,6 +179,7 @@ async def _stream_response(graph, state: dict[str, Any], cached_meta: dict[str, 
             "cache_hit": cached_meta.get("cache_hit", False),
             "cache_tier": cached_meta.get("cache_tier"),
             "retrieved_at": cached_meta.get("retrieved_at"),
+            "stale_results": cached_meta.get("stale_results", False),
         },
     )
 
@@ -200,6 +215,7 @@ def _cached_response(stream: bool, payload: dict[str, Any]):
         cache_hit=True,
         cache_tier=payload.get("cache_tier", "answer"),
         retrieved_at=payload.get("retrieved_at"),
+        stale_results=payload.get("stale_results", False),
     )
 
 
@@ -208,6 +224,7 @@ async def _stream_cached_response(payload: dict[str, Any]):
         "cache_hit": True,
         "cache_tier": payload.get("cache_tier", "answer"),
         "retrieved_at": payload.get("retrieved_at"),
+        "stale_results": payload.get("stale_results", False),
     }
     yield format_sse_event("route", {"route": payload["route"]})
     yield format_sse_event("meta", meta)
@@ -222,6 +239,7 @@ async def _stream_cached_response(payload: dict[str, Any]):
             "cache_hit": True,
             "cache_tier": payload.get("cache_tier", "answer"),
             "retrieved_at": payload.get("retrieved_at"),
+            "stale_results": payload.get("stale_results", False),
         },
     )
 
