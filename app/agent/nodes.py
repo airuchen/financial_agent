@@ -134,7 +134,7 @@ async def router_node(
         "messages"
     ]
     response = await retry_async(
-        lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+        lambda: llm.ainvoke(messages),
         service="llm",
     )
 
