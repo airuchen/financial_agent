@@ -14,8 +14,8 @@ All configuration is via environment variables. Copy `.env.example` to `.env` fo
 | `TAVILY_API_KEY` | — | yes | Tavily Search API key |
 | `API_HOST` | `0.0.0.0` | no | API bind address |
 | `API_PORT` | `8000` | no | API bind port |
-| `AUTH_ENABLED` | `true` | no | Enable API-key auth + rate limiting on `POST /query` |
-| `API_KEY_HASHES` | — | if auth enabled | Comma-separated `id:sha256hex` API key hashes |
+| `AUTH_ENABLED` | `false` | no | Enable API-key auth + rate limiting on `POST /query` |
+| `API_KEY_HASHES` | — | if `AUTH_ENABLED=true` | Comma-separated `id:sha256hex` API key hashes |
 | `RATE_LIMIT_MINUTE` | `60` | no | Per-scope requests per minute |
 | `RATE_LIMIT_HOUR` | `600` | no | Per-scope requests per hour |
 | `CACHE_ENABLED` | `true` | no | Enable Redis-backed response/search caching |
@@ -43,6 +43,10 @@ ollama pull qwen2.5:7b
 # Start with Docker Compose
 docker compose --profile local-llm up
 ```
+
+Note for Docker Compose: the API service is wired to internal service hosts
+(`OLLAMA_BASE_URL=http://ollama:11434`, `REDIS_URL=redis://redis:6379/0`) so
+container networking works even if your local `.env` uses `localhost`.
 
 ## Running with OpenAI
 

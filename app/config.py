@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     cors_allow_credentials: bool = False
-    auth_enabled: bool = True
+    auth_enabled: bool = False
     api_key_hashes: str = ""
     rate_limit_minute: int = 60
     rate_limit_hour: int = 600
