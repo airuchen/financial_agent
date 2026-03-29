@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v1.6.0 (2026-03-29)
+
+### Bug Fixes
+
+- **cache**: Classify historical finance queries as noncritical
+  ([`735ff3c`](https://github.com/airuchen/financial_agent/commit/735ff3c87f712a9fc2fbd26f2af2dd5e07070174))
+
+- **streaming**: Stabilize merged streaming and test compatibility
+  ([`33f93c0`](https://github.com/airuchen/financial_agent/commit/33f93c061d5052de8609da69ed9f61281876ace2))
+
+### Chores
+
+- Fix ruff-format
+  ([`7e4c0ff`](https://github.com/airuchen/financial_agent/commit/7e4c0fff2f57feab775e15eeea1b581b89a6299e))
+
+### Documentation
+
+- Factor out architecture.md
+  ([`3e39ebf`](https://github.com/airuchen/financial_agent/commit/3e39ebfa78193feaf717f58b1f1d7c511a0598aa))
+
+- Migrate documentation from doxygen to sphinx
+  ([`714e749`](https://github.com/airuchen/financial_agent/commit/714e749e97b3d7e8701e7564dbc23073dd1f9f45))
+
+- **router**: Document intent-based routing behavior
+  ([`99d0f3e`](https://github.com/airuchen/financial_agent/commit/99d0f3e7fc4cc2671432e23f940a755b9f59f6af))
+
+### Features
+
+- **resilience**: Add retries and explicit search fallback handling
+  ([`33b8bc1`](https://github.com/airuchen/financial_agent/commit/33b8bc191d6ea764d44f98ddf77611799653d29c))
+
+- **router**: Add deterministic casual-intent guard for direct routing
+  ([`a19d973`](https://github.com/airuchen/financial_agent/commit/a19d973da654d04217b7b952596ab12a742b6b8e))
+
+- **router**: Use intent classifier with time-critical veto
+  ([`aa24795`](https://github.com/airuchen/financial_agent/commit/aa247954c8bf3bfe282e6a339c8f6defb672c204))
+
+- **security**: Harden untrusted tool-output prompt handling
+  ([`af55f92`](https://github.com/airuchen/financial_agent/commit/af55f9237b76303de53ac43bb17993e17ad4048f))
+
+- **streaming**: Implement true incremental SSE token streaming
+  ([`4f19175`](https://github.com/airuchen/financial_agent/commit/4f19175bdff71d454ddfaed0ea7499d48412019b))
+
+
 ## v1.5.0 (2026-03-29)
 
 ### Bug Fixes
