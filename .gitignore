@@ -1,1 +1,11 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+.pytest_cache/
 .superpowers/
+docs/doxygen_output/
