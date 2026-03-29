@@ -126,9 +126,11 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
         )
         return {"route": "search"}
 
-    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)] + state["messages"]
+    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)] + state[
+        "messages"
+    ]
     response = await retry_async(
-        lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+        lambda: llm.ainvoke(messages),
         service="llm",
     )
 

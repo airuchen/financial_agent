@@ -151,14 +151,12 @@ def empty_search_response() -> str:
 def _is_retryable(error: ExternalServiceError) -> bool:
     return isinstance(
         error,
-        (
-            SearchTimeoutError,
-            SearchRateLimitError,
-            SearchBackendError,
-            LLMTimeoutError,
-            LLMRateLimitError,
-            LLMBackendError,
-        ),
+        SearchTimeoutError
+        | SearchRateLimitError
+        | SearchBackendError
+        | LLMTimeoutError
+        | LLMRateLimitError
+        | LLMBackendError,
     )
 
 
