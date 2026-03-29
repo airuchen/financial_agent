@@ -26,6 +26,11 @@ dev = [
     "pre-commit>=4.0.0",
     "python-semantic-release>=9.0.0",
 ]
+docs = [
+    "sphinx>=8.0.0",
+    "myst-parser>=4.0.0",
+    "furo>=2024.8.6",
+]
 
 [tool.ruff]
 target-version = "py312"
