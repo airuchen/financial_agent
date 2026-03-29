@@ -1,0 +1,127 @@
+import json
+import logging
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, SystemMessage
+
+from app.agent.prompts import (
+    DIRECT_RESPONSE_SYSTEM_PROMPT,
+    ROUTER_SYSTEM_PROMPT,
+    SEARCH_AGENT_SYSTEM_PROMPT,
+)
+from app.agent.state import AgentState
+from app.utils import extract_sources_from_tavily
+
+logger = logging.getLogger(__name__)
+
+
+async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
+    """Classify user query as 'search' or 'direct'.
+
+    Args:
+        state: Current agent state with user message.
+        llm: The LLM to use for classification.
+
+    Returns:
+        Dict with 'route' key set to 'search' or 'direct'.
+    """
+    messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
+    response = await llm.ainvoke(messages)
+
+    try:
+        decision = json.loads(response.content)
+        route = decision.get("route", "search")
+        if route not in ("search", "direct"):
+            route = "search"
+        logger.info("Route decision: %s — %s", route, decision.get("reasoning", ""))
+    except (json.JSONDecodeError, AttributeError):
+        logger.warning("Malformed router response, defaulting to search")
+        route = "search"
+
+    return {"route": route}
+
+
+async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
+    """Generate a direct response without web search.
+
+    Args:
+        state: Current agent state with user message.
+        llm: The LLM to use for generation.
+
+    Returns:
+        Dict with assistant message added to messages.
+    """
+    messages = [SystemMessage(content=DIRECT_RESPONSE_SYSTEM_PROMPT)] + state[
+        "messages"
+    ]
+    response = await llm.ainvoke(messages)
+    return {"messages": [response], "sources": []}
+
+
+async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> dict:
+    """Execute web search and synthesize results.
+
+    Uses Tavily to search the web, then asks the LLM to synthesize
+    the results into a coherent response with source attribution.
+
+    Args:
+        state: Current agent state with user message.
+        llm: The LLM to use for synthesis.
+        search_tool: A Tavily search tool instance.
+
+    Returns:
+        Dict with assistant message and source list.
+    """
+    user_query = state["messages"][-1].content
+    search_results = await search_tool.ainvoke({"query": user_query})
+
+    # Handle both dict and list returns from Tavily
+    if isinstance(search_results, dict):
+        results_list = search_results.get("results", [])
+    elif isinstance(search_results, list):
+        results_list = search_results
+    else:
+        results_list = []
+
+    sources = extract_sources_from_tavily(results_list)
+
+    # Build context from search results
+    context_parts = []
+    for i, source in enumerate(sources, 1):
+        context_parts.append(f"[{i}] {source.title} ({source.url})\n{source.snippet}")
+    context = "\n\n".join(context_parts)
+
+    synthesis_prompt = f"""{SEARCH_AGENT_SYSTEM_PROMPT}
+
+Search results:
+{context}
+
+Synthesize the above search results to answer the user's question. Reference sources using [1], [2], etc."""
+
+    messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
+    response = await llm.ainvoke(messages)
+    return {"messages": [response], "sources": sources}
+
+
+async def format_response(state: AgentState) -> dict:
+    """Normalize response format and append source references.
+
+    For search route: appends a numbered references list.
+    For direct route: passes through as-is.
+
+    Args:
+        state: Current agent state with response message and sources.
+
+    Returns:
+        Dict with formatted message.
+    """
+    if not state.get("sources"):
+        return {}
+
+    last_message = state["messages"][-1]
+    references = "\n\n**Sources:**\n"
+    for i, source in enumerate(state["sources"], 1):
+        references += f"[{i}] [{source.title}]({source.url})\n"
+
+    formatted_content = last_message.content + references
+    return {"messages": [AIMessage(content=formatted_content)]}
