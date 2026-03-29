@@ -1,4 +1,5 @@
 import hashlib
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -11,6 +12,42 @@ CacheClass = Literal["critical_market", "direct_knowledge", "search_noncritical"
 class CacheKeyContext:
     model: str
     prompt_revision: str
+
+
+def is_casual_query(query: str) -> bool:
+    """Detect greeting/small-talk queries that should never trigger web search."""
+    q = normalize_query(query)
+
+    finance_signals = (
+        "price",
+        "quote",
+        "stock",
+        "forex",
+        "eur/usd",
+        "exchange rate",
+        "fed",
+        "inflation",
+        "gdp",
+        "earnings",
+        "regulatory",
+        "filing",
+        "market",
+        "index",
+        "bond",
+        "yield",
+    )
+    if any(signal in q for signal in finance_signals):
+        return False
+
+    casual_patterns = (
+        r"^(hello|hi|hey|yo|hiya|greetings)[!.?]*$",
+        r"^(hello|hi|hey)\s+(there|team|bot)[!.?]*$",
+        r"^how are (you|u)[?.!]*$",
+        r"^what('?s|\s+is)\s+up[?.!]*$",
+        r"^good\s+(morning|afternoon|evening)[!.?]*$",
+        r"^nice to meet you[!.?]*$",
+    )
+    return any(re.match(pattern, q) for pattern in casual_patterns)
 
 
 def classify_cache_policy(query: str) -> CacheClass:
@@ -38,14 +75,14 @@ def classify_cache_policy(query: str) -> CacheClass:
     if any(k in q for k in critical_keywords):
         return "critical_market"
 
+    if is_casual_query(q):
+        return "direct_knowledge"
+
     direct_prefixes = (
         "what is ",
         "explain ",
         "define ",
         "how does ",
-        "hello",
-        "hi",
-        "hey",
     )
     if q.startswith(direct_prefixes):
         return "direct_knowledge"

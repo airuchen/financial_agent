@@ -2,6 +2,7 @@ from app.cache_policy import (
     CacheKeyContext,
     classify_cache_policy,
     direct_answer_cache_key,
+    is_casual_query,
     search_answer_cache_key,
     search_results_cache_key,
 )
@@ -15,6 +16,11 @@ def test_classify_critical_market_query():
 
 def test_classify_direct_knowledge_query():
     assert classify_cache_policy("What is diversification?") == "direct_knowledge"
+
+
+def test_classify_casual_query_as_direct_knowledge():
+    assert classify_cache_policy("How are you?") == "direct_knowledge"
+    assert classify_cache_policy("greetings") == "direct_knowledge"
 
 
 def test_classify_search_noncritical_query():
@@ -37,3 +43,10 @@ def test_cache_keys_are_stable():
     assert direct_key.startswith("agent:direct:v1:")
     assert search_answer_key.startswith("agent:search_answer:v1:")
     assert search_results_key.startswith("agent:search_results:v1:")
+
+
+def test_is_casual_query_positive_and_negative_cases():
+    assert is_casual_query("hello")
+    assert is_casual_query("Good morning!")
+    assert is_casual_query("what's up?")
+    assert not is_casual_query("What is the current EUR/USD?")

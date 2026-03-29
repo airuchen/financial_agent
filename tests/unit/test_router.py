@@ -43,6 +43,17 @@ async def test_router_routes_greeting_to_direct():
     state = _make_state("Hello")
     result = await router_node(state, llm)
     assert result["route"] == "direct"
+    llm.ainvoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_router_short_circuits_small_talk_to_direct():
+    """Small-talk must deterministically route direct without LLM call."""
+    llm = _mock_llm_response("search", "ignored")
+    state = _make_state("How are you?")
+    result = await router_node(state, llm)
+    assert result["route"] == "direct"
+    llm.ainvoke.assert_not_awaited()
 
 
 @pytest.mark.asyncio
