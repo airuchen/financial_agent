@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.2.1 (2026-03-29)
+
+### Bug Fixes
+
+- **compose**: Use internal service hosts and robust healthchecks
+  ([`0ae2271`](https://github.com/airuchen/financial_agent/commit/0ae22715d1061f3b57112eb7049440e053eaf8d7))
+
+- **config**: Default auth to disabled for local startup
+  ([`5f5bf15`](https://github.com/airuchen/financial_agent/commit/5f5bf15854a1f0e83789c8be93865b3e5a58caa5))
+
+### Chores
+
+- Fix pre-commit lint formatting issues
+  ([`347f1c4`](https://github.com/airuchen/financial_agent/commit/347f1c4d3ec5054449e50c5244da38baf0e2068b))
+
+- Fix pre-commit lint formatting issues
+  ([`46d8082`](https://github.com/airuchen/financial_agent/commit/46d8082a971285878d8dad26d1824080b133d35d))
+
+
 ## v1.2.0 (2026-03-29)
 
 ### Bug Fixes
