@@ -75,9 +75,7 @@ def query_hash(query: str) -> str:
 
 
 def direct_answer_cache_key(query: str, ctx: CacheKeyContext) -> str:
-    return (
-        f"agent:direct:v1:{query_hash(query)}:{ctx.model}:{ctx.prompt_revision}"
-    )
+    return f"agent:direct:v1:{query_hash(query)}:{ctx.model}:{ctx.prompt_revision}"
 
 
 def search_answer_cache_key(query: str, ctx: CacheKeyContext) -> str:

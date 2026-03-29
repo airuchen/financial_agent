@@ -105,7 +105,9 @@ def create_app(use_lifespan: bool = False) -> FastAPI:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=_parse_cors_origins(
-            os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+            os.getenv(
+                "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+            )
         ),
         allow_credentials=_cors_allow_credentials(),
         allow_methods=["*"],
