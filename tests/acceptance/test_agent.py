@@ -34,9 +34,7 @@ class MockStreamingChatModel(BaseChatModel):
             raise AssertionError("No mocked response left for _generate()")
         text = self._responses[self._response_index]
         self._response_index += 1
-        return ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content=text))]
-        )
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
 
     async def _astream(self, messages, stop=None, **kwargs):
         for content in self._stream_chunks:

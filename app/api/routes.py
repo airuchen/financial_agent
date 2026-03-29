@@ -100,8 +100,7 @@ async def query(request: Request, body: QueryRequest):
         result = await graph.ainvoke(state)
         final_message = result["messages"][-1].content
         sources = [
-            Source(**s) if isinstance(s, dict) else s
-            for s in result.get("sources", [])
+            Source(**s) if isinstance(s, dict) else s for s in result.get("sources", [])
         ]
         response_data = QueryResponse(
             response=final_message,
