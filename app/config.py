@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     cors_allow_credentials: bool = False
+    auth_enabled: bool = True
+    api_key_hashes: str = ""
+    rate_limit_minute: int = 60
+    rate_limit_hour: int = 600
 
     # Cache
     cache_enabled: bool = True
@@ -42,4 +46,6 @@ class Settings(BaseSettings):
             raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
         if not self.tavily_api_key.strip():
             raise ValueError("TAVILY_API_KEY is required")
+        if self.auth_enabled and not self.api_key_hashes.strip():
+            raise ValueError("API_KEY_HASHES is required when AUTH_ENABLED=true")
         return self

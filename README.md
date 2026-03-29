@@ -29,6 +29,7 @@ uv sync --all-extras
 # Configure
 cp .env.example .env
 # Edit .env with your Tavily API key and LLM preference
+# Set API_KEY_HASHES with sha256 hashes for allowed API keys
 ```
 
 ### Run with Ollama (Local LLM)
@@ -61,11 +62,13 @@ docker compose --profile local-llm up
 # JSON response
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api_key>" \
   -d '{"query": "What is the current EUR/USD rate?", "stream": false}'
 
 # SSE streaming
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api_key>" \
   -d '{"query": "Latest Fed decision", "stream": true}' \
   --no-buffer
 

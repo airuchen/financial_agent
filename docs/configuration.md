@@ -14,12 +14,25 @@ All configuration is via environment variables. Copy `.env.example` to `.env` fo
 | `TAVILY_API_KEY` | — | yes | Tavily Search API key |
 | `API_HOST` | `0.0.0.0` | no | API bind address |
 | `API_PORT` | `8000` | no | API bind port |
+| `AUTH_ENABLED` | `true` | no | Enable API-key auth + rate limiting on `POST /query` |
+| `API_KEY_HASHES` | — | if auth enabled | Comma-separated `id:sha256hex` API key hashes |
+| `RATE_LIMIT_MINUTE` | `60` | no | Per-scope requests per minute |
+| `RATE_LIMIT_HOUR` | `600` | no | Per-scope requests per hour |
 | `CACHE_ENABLED` | `true` | no | Enable Redis-backed response/search caching |
 | `REDIS_URL` | `redis://localhost:6379/0` | no | Redis connection URL |
 | `CACHE_PROMPT_REVISION` | `v1` | no | Prompt revision tag included in cache keys |
 | `CACHE_TTL_DIRECT_SEC` | `86400` | no | TTL for direct-response cache entries |
 | `CACHE_TTL_SEARCH_RESULTS_SEC` | `900` | no | TTL for cached non-critical search results |
 | `CACHE_TTL_SEARCH_ANSWER_SEC` | `300` | no | TTL for cached non-critical search answers |
+
+Generate an API key hash:
+
+```bash
+printf 'your-api-key' | sha256sum
+```
+
+Set `API_KEY_HASHES` as comma-separated `id:sha256hex`, e.g.
+`researcher1:ab12...,service2:cd34...`.
 
 ## Running with Ollama (Local LLM)
 

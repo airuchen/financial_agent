@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 BASE_URL = "http://localhost:8000"
+AUTH_HEADERS = {"Authorization": "Bearer e2e-test-key"}
 
 
 @pytest.fixture(scope="module")
@@ -35,6 +36,7 @@ class TestE2EApi:
         response = httpx.post(
             f"{BASE_URL}/query",
             json={"query": "What is diversification?", "stream": False},
+            headers=AUTH_HEADERS,
             timeout=60,
         )
         assert response.status_code == 200
@@ -48,6 +50,7 @@ class TestE2EApi:
             "POST",
             f"{BASE_URL}/query",
             json={"query": "Hello", "stream": True},
+            headers=AUTH_HEADERS,
             timeout=60,
         ) as response:
             assert response.status_code == 200

@@ -59,6 +59,7 @@ jobs:
             -e LLM_MODEL=gpt-4o-mini \
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             -e TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }} \
+            -e API_KEY_HASHES=e2e:e221f7025595f37d2517e15f48d97ea1c77bc9daca4ba11896ea3261401ea6e5 \
             scalable-search-agent:test
           sleep 10
       - name: Run E2E tests
