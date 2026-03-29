@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # LLM
     llm_provider: str = "ollama"
     llm_model: str = "qwen2.5:7b"
+    llm_temperature: float = 0.0
     llm_timeout: int = 30
 
     # Ollama
