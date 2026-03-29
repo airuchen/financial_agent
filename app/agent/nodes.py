@@ -10,6 +10,7 @@ from app.agent.prompts import (
     INTENT_CLASSIFIER_SYSTEM_PROMPT,
     SEARCH_AGENT_SYSTEM_PROMPT,
 )
+from app.agent.resilience import empty_search_response, retry_async
 from app.agent.state import AgentState
 from app.cache_policy import has_time_critical_finance_signal
 from app.utils import extract_sources_from_tavily
@@ -34,10 +35,11 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
         )
         return {"route": "search"}
 
-    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)] + state[
-        "messages"
-    ]
-    response = await llm.ainvoke(messages)
+    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)] + state["messages"]
+    response = await retry_async(
+        lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+        service="llm",
+    )
 
     try:
         decision = json.loads(response.content)
@@ -80,7 +82,7 @@ async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
     messages = [SystemMessage(content=DIRECT_RESPONSE_SYSTEM_PROMPT)] + state[
         "messages"
     ]
-    response = await llm.ainvoke(messages)
+    response = await retry_async(lambda: llm.ainvoke(messages), service="llm")
     return {"messages": [response], "sources": []}
 
 
@@ -112,6 +114,12 @@ async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> di
         results_list = []
 
     sources = extract_sources_from_tavily(results_list)
+    if not sources:
+        logger.info("No search results found for query: %s", user_query)
+        return {
+            "messages": [AIMessage(content=empty_search_response())],
+            "sources": [],
+        }
 
     # Build context from search results
     context_parts = []
@@ -131,7 +139,7 @@ Search results:
 {instruction}"""
 
     messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
-    response = await llm.ainvoke(messages)
+    response = await retry_async(lambda: llm.ainvoke(messages), service="llm")
     return {"messages": [response], "sources": sources}
 
 
@@ -143,9 +151,15 @@ async def _invoke_search_tool(search_tool: Any, user_query: str) -> Any:
     - Tavily Async client exposing `search(query=...)`
     """
     if hasattr(search_tool, "ainvoke"):
-        return await search_tool.ainvoke({"query": user_query})
+        return await retry_async(
+            lambda: search_tool.ainvoke({"query": user_query}),
+            service="search",
+        )
     if hasattr(search_tool, "search"):
-        return await search_tool.search(query=user_query)
+        return await retry_async(
+            lambda: search_tool.search(query=user_query),
+            service="search",
+        )
     raise TypeError(
         "Unsupported search tool interface. Expected async 'ainvoke' or 'search'."
     )
