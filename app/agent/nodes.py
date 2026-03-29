@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
@@ -73,7 +74,7 @@ async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> di
         Dict with assistant message and source list.
     """
     user_query = state["messages"][-1].content
-    search_results = await search_tool.ainvoke({"query": user_query})
+    search_results = await _invoke_search_tool(search_tool, user_query)
 
     # Handle both dict and list returns from Tavily
     if isinstance(search_results, dict):
@@ -91,16 +92,36 @@ async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> di
         context_parts.append(f"[{i}] {source.title} ({source.url})\n{source.snippet}")
     context = "\n\n".join(context_parts)
 
+    instruction = (
+        "Synthesize the above search results to answer the user's question. "
+        "Reference sources using [1], [2], etc."
+    )
     synthesis_prompt = f"""{SEARCH_AGENT_SYSTEM_PROMPT}
 
 Search results:
 {context}
 
-Synthesize the above search results to answer the user's question. Reference sources using [1], [2], etc."""
+{instruction}"""
 
     messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
     response = await llm.ainvoke(messages)
     return {"messages": [response], "sources": sources}
+
+
+async def _invoke_search_tool(search_tool: Any, user_query: str) -> Any:
+    """Call the configured search tool across supported async interfaces.
+
+    Supports both:
+    - LangChain-style tools exposing `ainvoke({"query": ...})`
+    - Tavily Async client exposing `search(query=...)`
+    """
+    if hasattr(search_tool, "ainvoke"):
+        return await search_tool.ainvoke({"query": user_query})
+    if hasattr(search_tool, "search"):
+        return await search_tool.search(query=user_query)
+    raise TypeError(
+        "Unsupported search tool interface. Expected async 'ainvoke' or 'search'."
+    )
 
 
 async def format_response(state: AgentState) -> dict:
