@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.5.0 (2026-03-29)
+
+### Bug Fixes
+
+- **cache**: Classify historical finance queries as noncritical
+  ([`8db09ab`](https://github.com/airuchen/financial_agent/commit/8db09ab19cb8a9b37e4fadcfc2cc4f11fb394680))
+
+### Chores
+
+- Fix ruff-format
+  ([`aa7f26d`](https://github.com/airuchen/financial_agent/commit/aa7f26d60617af93cf8aad32f9a3739633340439))
+
+### Documentation
+
+- Migrate documentation from doxygen to sphinx
+  ([`c6b9d9f`](https://github.com/airuchen/financial_agent/commit/c6b9d9f412b54eeffd8ebaffe75bdcf431017bfe))
+
+### Features
+
+- **resilience**: Add retries and explicit search fallback handling
+  ([`c6ca583`](https://github.com/airuchen/financial_agent/commit/c6ca583e7eaa53753d57a48710095be6eb194006))
+
+- **security**: Harden untrusted tool-output prompt handling
+  ([`fecb369`](https://github.com/airuchen/financial_agent/commit/fecb369ff05b9fc5ab538314b543d1553a547672))
+
+
 ## v1.4.0 (2026-03-29)
 
 ### Documentation
