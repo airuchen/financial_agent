@@ -161,7 +161,17 @@ async def _stream_response(graph, state: dict[str, Any], cached_meta: dict[str, 
     final_message = ""
     sources_data: list[dict[str, Any]] = []
 
-    async for event in graph.astream_events(state, version="v2"):
+    try:
+        event_stream = graph.astream_events(
+            state,
+            version="v2",
+            config={"configurable": {"stream_tokens": True}},
+        )
+    except TypeError:
+        # Test fakes may not accept the optional config kwarg.
+        event_stream = graph.astream_events(state, version="v2")
+
+    async for event in event_stream:
         event_name = event.get("event")
         name = event.get("name")
         data = event.get("data") or {}

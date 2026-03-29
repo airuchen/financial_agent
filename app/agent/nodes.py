@@ -156,10 +156,16 @@ async def direct_response(
     messages = [SystemMessage(content=DIRECT_RESPONSE_SYSTEM_PROMPT)] + state[
         "messages"
     ]
-    response = await retry_async(
-        lambda: _stream_llm_response(llm, messages, config=config),
-        service="llm",
-    )
+    if _token_streaming_enabled(config):
+        response = await retry_async(
+            lambda: _stream_llm_response(llm, messages, config=config),
+            service="llm",
+        )
+    else:
+        response = await retry_async(
+            lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+            service="llm",
+        )
     return {"messages": [response], "sources": []}
 
 
@@ -221,10 +227,16 @@ Search results:
 {instruction}"""
 
     messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
-    response = await retry_async(
-        lambda: _stream_llm_response(llm, messages, config=config),
-        service="llm",
-    )
+    if _token_streaming_enabled(config):
+        response = await retry_async(
+            lambda: _stream_llm_response(llm, messages, config=config),
+            service="llm",
+        )
+    else:
+        response = await retry_async(
+            lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+            service="llm",
+        )
     return {"messages": [response], "sources": sources}
 
 
@@ -297,6 +309,15 @@ async def _invoke_llm_ainvoke(
     if config is not None:
         return await llm.ainvoke(messages, config=config)
     return await llm.ainvoke(messages)
+
+
+def _token_streaming_enabled(config: dict[str, Any] | None) -> bool:
+    if not config:
+        return False
+    configurable = config.get("configurable", {})
+    if isinstance(configurable, dict):
+        return bool(configurable.get("stream_tokens"))
+    return False
 
 
 async def format_response(state: AgentState) -> dict:
