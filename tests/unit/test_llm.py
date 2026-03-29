@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from app.config import Settings
 from app.llm import create_llm
@@ -56,3 +57,32 @@ def test_settings_defaults():
         assert settings.llm_provider == "ollama"
         assert settings.llm_model == "qwen2.5:7b"
         assert settings.llm_timeout == 30
+
+
+def test_settings_requires_tavily_api_key():
+    """Settings validation fails when TAVILY_API_KEY is missing."""
+    with (
+        patch.dict("os.environ", {"TAVILY_API_KEY": ""}, clear=False),
+        pytest.raises(ValidationError, match="TAVILY_API_KEY is required"),
+    ):
+        Settings()
+
+
+def test_settings_requires_openai_key_for_openai_provider():
+    """Settings validation fails without OPENAI_API_KEY in OpenAI mode."""
+    with (
+        patch.dict(
+            "os.environ",
+            {
+                "LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "",
+                "TAVILY_API_KEY": "tvly-test",
+            },
+            clear=False,
+        ),
+        pytest.raises(
+            ValidationError,
+            match="OPENAI_API_KEY is required when LLM_PROVIDER=openai",
+        ),
+    ):
+        Settings()

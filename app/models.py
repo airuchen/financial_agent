@@ -4,7 +4,12 @@ from pydantic import BaseModel, Field
 class QueryRequest(BaseModel):
     """Request body for POST /query."""
 
-    query: str = Field(..., min_length=1, description="The user's research query")
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="The user's research query",
+    )
     stream: bool = Field(
         default=True, description="Whether to stream the response via SSE"
     )

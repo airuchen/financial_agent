@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -23,3 +24,14 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
+    cors_allow_credentials: bool = False
+
+    @model_validator(mode="after")
+    def validate_required_keys(self):
+        """Validate provider-dependent and required external API credentials."""
+        if self.llm_provider == "openai" and not self.openai_api_key.strip():
+            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+        if not self.tavily_api_key.strip():
+            raise ValueError("TAVILY_API_KEY is required")
+        return self
