@@ -142,7 +142,7 @@ async def test_query_json_writes_cache_for_noncritical_search(app, mock_graph):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/query",
-            json={"query": "Summarize last week Fed decision", "stream": False},
+            json={"query": "Summarize last week ECB communication", "stream": False},
         )
 
     assert response.status_code == 200

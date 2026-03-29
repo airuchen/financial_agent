@@ -21,6 +21,22 @@ Respond with ONLY a JSON object in this exact format:
 {{"route": "search" or "direct", "reasoning": "brief explanation of why"}}
 """
 
+INTENT_CLASSIFIER_SYSTEM_PROMPT = """You are an intent classifier for a
+financial research assistant.
+
+Classify the user's query into exactly one intent:
+
+- "casual": greetings or small talk that do not require financial analysis.
+- "direct_finance": finance-related questions answerable from stable knowledge.
+  Examples: "What is diversification?", "Explain P/E ratio".
+- "search_finance": finance questions requiring up-to-date web information.
+  Examples: "Current EUR/USD", "Latest Fed decision", "today's stock price".
+
+Respond with ONLY a JSON object in this exact format:
+{{"intent": "casual" or "direct_finance" or "search_finance",
+"reasoning": "brief explanation"}}
+"""
+
 SEARCH_AGENT_SYSTEM_PROMPT = """You are a financial research assistant with
 access to web search.
 

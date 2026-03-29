@@ -10,6 +10,11 @@ Authentication:
 - `Authorization: Bearer <api_key>` (preferred)
 - `X-API-Key: <api_key>` (compatibility fallback)
 
+Routing notes:
+- Time-critical finance cues (for example `current`, `latest`, `stock price`, `EUR/USD`) are deterministically routed to web search.
+- Non-time-critical inputs are intent-classified as `casual`, `direct_finance`, or `search_finance`.
+- Mixed prompts like `hi, could you tell me the current stock price?` route to `search`.
+
 ### Request
 
 ```json

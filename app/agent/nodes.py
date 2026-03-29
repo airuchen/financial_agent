@@ -7,11 +7,11 @@ from langchain_core.messages import AIMessage, SystemMessage
 
 from app.agent.prompts import (
     DIRECT_RESPONSE_SYSTEM_PROMPT,
-    ROUTER_SYSTEM_PROMPT,
+    INTENT_CLASSIFIER_SYSTEM_PROMPT,
     SEARCH_AGENT_SYSTEM_PROMPT,
 )
 from app.agent.state import AgentState
-from app.cache_policy import is_casual_query
+from app.cache_policy import has_time_critical_finance_signal
 from app.utils import extract_sources_from_tavily
 
 logger = logging.getLogger(__name__)
@@ -28,24 +28,43 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
         Dict with 'route' key set to 'search' or 'direct'.
     """
     user_query = state["messages"][-1].content
-    if is_casual_query(user_query):
-        logger.info("Route decision: direct — deterministic casual-intent guard match")
-        return {"route": "direct"}
+    if has_time_critical_finance_signal(user_query):
+        logger.info(
+            "Route decision: search — deterministic time-critical finance signal match"
+        )
+        return {"route": "search"}
 
-    messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
+    messages = [SystemMessage(content=INTENT_CLASSIFIER_SYSTEM_PROMPT)] + state[
+        "messages"
+    ]
     response = await llm.ainvoke(messages)
 
     try:
         decision = json.loads(response.content)
-        route = decision.get("route", "search")
-        if route not in ("search", "direct"):
+        intent = decision.get("intent")
+        route = _route_from_intent(intent)
+        if route is None:
             route = "search"
-        logger.info("Route decision: %s — %s", route, decision.get("reasoning", ""))
+        logger.info(
+            "Route decision: %s (intent=%s) — %s",
+            route,
+            intent,
+            decision.get("reasoning", ""),
+        )
     except (json.JSONDecodeError, AttributeError):
         logger.warning("Malformed router response, defaulting to search")
         route = "search"
 
     return {"route": route}
+
+
+def _route_from_intent(intent: str | None) -> str | None:
+    intent_to_route = {
+        "casual": "direct",
+        "direct_finance": "direct",
+        "search_finance": "search",
+    }
+    return intent_to_route.get(intent)
 
 
 async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
