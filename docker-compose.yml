@@ -4,6 +4,9 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       redis:
         condition: service_started
@@ -12,7 +15,13 @@ services:
         required: false
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -25,7 +34,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 3
