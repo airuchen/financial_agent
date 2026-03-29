@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-03-29)
+
+### Bug Fixes
+
+- **actions**: Configure github pages environment and setup step
+  ([`dc6b588`](https://github.com/airuchen/financial_agent/commit/dc6b588c91df1395cc81d1e82e4379319fdf56d3))
+
+### Features
+
+- **security**: Add API key auth and Redis rate limiting
+  ([`2090a43`](https://github.com/airuchen/financial_agent/commit/2090a4314efc5cf70119a7a00ba0a078e3eb5e17))
+
+
 ## v1.1.0 (2026-03-29)
 
 ### Bug Fixes
