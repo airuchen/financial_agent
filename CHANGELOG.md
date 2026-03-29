@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.3 (2026-03-29)
+
+### Bug Fixes
+
+- **actions**: Gate pages deploy behind repo variable
+  ([`5822f1d`](https://github.com/airuchen/financial_agent/commit/5822f1dbecaadda2875730bb14fafda3cde8904c))
+
+
 ## v1.2.2 (2026-03-29)
 
 ### Bug Fixes
