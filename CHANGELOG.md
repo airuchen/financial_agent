@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.2 (2026-03-29)
+
+### Bug Fixes
+
+- **actions**: Enable pages site during workflow setup
+  ([`ae5066c`](https://github.com/airuchen/financial_agent/commit/ae5066c8ee7b706c9a4f3a3257b9f12aac6d568c))
+
+
 ## v1.2.1 (2026-03-29)
 
 ### Bug Fixes
