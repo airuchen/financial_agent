@@ -141,22 +141,51 @@ async def _stream_response(graph, state: dict[str, Any], cached_meta: dict[str, 
     Yields:
         Formatted SSE event strings.
     """
-    result = await graph.ainvoke(state)
+    route_emitted = False
+    final_state: dict[str, Any] | None = None
+    final_message = ""
+    sources_data: list[dict[str, Any]] = []
 
-    route = result.get("route", "")
-    yield format_sse_event("route", {"route": route})
-    yield format_sse_event("meta", cached_meta)
+    async for event in graph.astream_events(state, version="v2"):
+        event_name = event.get("event")
+        name = event.get("name")
+        data = event.get("data") or {}
 
-    final_message = result["messages"][-1].content
-    # Emit tokens (word-level chunking for SSE)
-    for word in final_message.split(" "):
-        yield format_sse_event("token", {"content": word + " ", "type": "token"})
+        if event_name == "on_chain_end" and name == "router":
+            output = data.get("output") or {}
+            route = output.get("route", "") if isinstance(output, dict) else ""
+            yield format_sse_event("route", {"route": route})
+            yield format_sse_event("meta", cached_meta)
+            route_emitted = True
+            continue
 
-    if result.get("sources"):
-        sources_data = [
-            s.model_dump() if hasattr(s, "model_dump") else s for s in result["sources"]
-        ]
+        if event_name == "on_chat_model_stream" and route_emitted:
+            chunk = data.get("chunk")
+            content = _chunk_content(chunk)
+            if content:
+                yield format_sse_event("token", {"content": content, "type": "token"})
+            continue
+
+        if event_name == "on_chain_end" and name == "LangGraph":
+            output = data.get("output")
+            if isinstance(output, dict):
+                final_state = output
+
+    if final_state is None:
+        final_state = state
+
+    if not route_emitted:
+        route = final_state.get("route", "")
+        yield format_sse_event("route", {"route": route})
+        yield format_sse_event("meta", cached_meta)
+
+    sources_data = _serialize_sources(final_state.get("sources", []))
+    if sources_data:
         yield format_sse_event("sources", {"sources": sources_data})
+
+    messages = final_state.get("messages", [])
+    if messages:
+        final_message = getattr(messages[-1], "content", "")
 
     yield format_sse_event(
         "done",
@@ -297,3 +326,18 @@ def _sources_to_results(sources: list[dict]) -> list[dict]:
         }
         for s in sources
     ]
+
+
+def _chunk_content(chunk: Any) -> str:
+    content = getattr(chunk, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                parts.append(str(block.get("text", block.get("content", ""))))
+        return "".join(parts)
+    return ""

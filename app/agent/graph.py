@@ -28,14 +28,14 @@ def build_graph(llm: BaseChatModel, search_tool) -> StateGraph:
     graph = StateGraph(AgentState)
 
     # Add nodes with bound dependencies (async wrappers to properly await)
-    async def _router(state):
-        return await router_node(state, llm)
+    async def _router(state, config):
+        return await router_node(state, llm, config=config)
 
-    async def _search_agent(state):
-        return await search_agent(state, llm, search_tool)
+    async def _search_agent(state, config):
+        return await search_agent(state, llm, search_tool, config=config)
 
-    async def _direct_response(state):
-        return await direct_response(state, llm)
+    async def _direct_response(state, config):
+        return await direct_response(state, llm, config=config)
 
     graph.add_node("router", _router)
     graph.add_node("search_agent", _search_agent)

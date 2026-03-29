@@ -2,17 +2,45 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from pydantic import PrivateAttr
 
 from app.agent.graph import build_graph
 
 
-def _mock_llm(responses: list[str]) -> AsyncMock:
-    """Create a mock LLM that returns a sequence of AIMessage responses."""
-    llm = AsyncMock()
-    side_effects = [AIMessage(content=text) for text in responses]
-    llm.ainvoke = AsyncMock(side_effect=side_effects)
-    return llm
+class MockStreamingChatModel(BaseChatModel):
+    _responses: list[str] = PrivateAttr()
+    _stream_chunks: list[str] = PrivateAttr()
+    _response_index: int = PrivateAttr(default=0)
+
+    def __init__(
+        self,
+        *,
+        responses: list[str],
+        stream_chunks: list[str],
+    ):
+        super().__init__()
+        self._responses = responses
+        self._stream_chunks = stream_chunks
+
+    @property
+    def _llm_type(self) -> str:
+        return "mock-streaming"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        if self._response_index >= len(self._responses):
+            raise AssertionError("No mocked response left for _generate()")
+        text = self._responses[self._response_index]
+        self._response_index += 1
+        return ChatResult(
+            generations=[ChatGeneration(message=AIMessage(content=text))]
+        )
+
+    async def _astream(self, messages, stop=None, **kwargs):
+        for content in self._stream_chunks:
+            yield ChatGenerationChunk(message=AIMessageChunk(content=content))
 
 
 def _mock_search_tool(results: list[dict]) -> AsyncMock:
@@ -28,8 +56,10 @@ async def test_graph_search_path():
     router_response = json.dumps(
         {"route": "search", "reasoning": "Asks for current data"}
     )
-    agent_response = "The EUR/USD rate is 1.08 [1]."
-    llm = _mock_llm([router_response, agent_response])
+    llm = MockStreamingChatModel(
+        responses=[router_response],
+        stream_chunks=["The EUR/USD rate is 1.08 [1]."],
+    )
 
     search_results = [
         {
@@ -58,7 +88,10 @@ async def test_graph_direct_path():
     """Direct route: router -> direct_response -> format_response with no sources."""
     router_response = json.dumps({"route": "direct", "reasoning": "Greeting"})
     direct_answer = "Hello! How can I help with your financial research?"
-    llm = _mock_llm([router_response, direct_answer])
+    llm = MockStreamingChatModel(
+        responses=[router_response],
+        stream_chunks=[direct_answer],
+    )
 
     search_tool = _mock_search_tool([])
 

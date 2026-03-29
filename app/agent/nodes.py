@@ -16,7 +16,9 @@ from app.utils import extract_sources_from_tavily
 logger = logging.getLogger(__name__)
 
 
-async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
+async def router_node(
+    state: AgentState, llm: BaseChatModel, config: dict[str, Any] | None = None
+) -> dict:
     """Classify user query as 'search' or 'direct'.
 
     Args:
@@ -27,7 +29,7 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
         Dict with 'route' key set to 'search' or 'direct'.
     """
     messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
-    response = await llm.ainvoke(messages)
+    response = await llm.ainvoke(messages, config=config)
 
     try:
         decision = json.loads(response.content)
@@ -42,7 +44,9 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
     return {"route": route}
 
 
-async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
+async def direct_response(
+    state: AgentState, llm: BaseChatModel, config: dict[str, Any] | None = None
+) -> dict:
     """Generate a direct response without web search.
 
     Args:
@@ -55,11 +59,16 @@ async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
     messages = [SystemMessage(content=DIRECT_RESPONSE_SYSTEM_PROMPT)] + state[
         "messages"
     ]
-    response = await llm.ainvoke(messages)
+    response = await _stream_llm_response(llm, messages, config=config)
     return {"messages": [response], "sources": []}
 
 
-async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> dict:
+async def search_agent(
+    state: AgentState,
+    llm: BaseChatModel,
+    search_tool,
+    config: dict[str, Any] | None = None,
+) -> dict:
     """Execute web search and synthesize results.
 
     Uses Tavily to search the web, then asks the LLM to synthesize
@@ -106,7 +115,7 @@ Search results:
 {instruction}"""
 
     messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
-    response = await llm.ainvoke(messages)
+    response = await _stream_llm_response(llm, messages, config=config)
     return {"messages": [response], "sources": sources}
 
 
@@ -124,6 +133,26 @@ async def _invoke_search_tool(search_tool: Any, user_query: str) -> Any:
     raise TypeError(
         "Unsupported search tool interface. Expected async 'ainvoke' or 'search'."
     )
+
+
+async def _stream_llm_response(
+    llm: BaseChatModel,
+    messages: list[Any],
+    config: dict[str, Any] | None = None,
+) -> AIMessage:
+    """Consume a streamed model response and rebuild the final message."""
+    chunks: list[str] = []
+    async for chunk in llm.astream(messages, config=config):
+        content = getattr(chunk, "content", "")
+        if isinstance(content, str) and content:
+            chunks.append(content)
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, str) and part:
+                    chunks.append(part)
+                elif isinstance(part, dict):
+                    chunks.append(str(part.get("text", part.get("content", ""))))
+    return AIMessage(content="".join(chunks))
 
 
 async def format_response(state: AgentState) -> dict:
