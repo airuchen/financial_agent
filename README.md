@@ -5,6 +5,7 @@ LLM-powered Internet-Search Agent for financial research. Built with LangGraph, 
 ## Features
 
 - **Smart Query Routing** — Automatically decides whether to search the web or answer from knowledge
+- **Mixed-Intent Safe Routing** — Time-critical finance signals (e.g., "current stock price") force search even with greeting prefixes
 - **Streaming Responses** — Real-time SSE streaming of agent responses
 - **Source Attribution** — All search-based answers include numbered source references
 - **Pluggable LLM** — Supports Ollama (local) and OpenAI (cloud) via environment config
@@ -97,5 +98,9 @@ uv run pytest tests/e2e/ -v            # E2E tests (requires running container)
 POST /query -> FastAPI -> LangGraph:
   router_node -> [search_agent | direct_response] -> format_response -> SSE/JSON response
 ```
+
+Routing behavior:
+- Time-critical finance signals are deterministically routed to `search`.
+- Other queries are intent-classified by the LLM (`casual`, `direct_finance`, `search_finance`) and then mapped to route.
 
 See [ADR-001](docs/adr/001-langgraph-explicit-router.md) for the routing design rationale.

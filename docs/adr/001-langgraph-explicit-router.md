@@ -15,7 +15,13 @@ We are using qwen2.5:7b (local Ollama) as the default model, which has limited t
 Use approach B — explicit router with a separate classification node. The LangGraph graph structure is:
 `router_node → [search_agent | direct_response] → format_response`
 
-The router uses structured JSON output for its classification, making it independently testable.
+The router uses a hybrid strategy:
+- deterministic veto for time-critical finance signals (force `search`)
+- structured LLM intent classification (`casual`, `direct_finance`, `search_finance`)
+  mapped to final route (`direct` or `search`)
+
+This keeps mixed prompts safe (e.g. greeting + current stock price still routes to search)
+while reducing casual/small-talk misrouting.
 
 ## Consequences
 - **Easier:** Unit testing routing logic, debugging routing decisions, tuning routing independently of generation.
