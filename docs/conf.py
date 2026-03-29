@@ -3,6 +3,7 @@ author = "Financial Research Agent Contributors"
 
 extensions = [
     "myst_parser",
+    "sphinxcontrib.mermaid",
 ]
 
 templates_path = ["_templates"]

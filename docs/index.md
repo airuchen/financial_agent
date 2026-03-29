@@ -4,6 +4,7 @@
 :maxdepth: 2
 :caption: Guides
 
+architecture
 api
 configuration
 deployment
