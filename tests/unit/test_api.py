@@ -4,8 +4,22 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.cache_policy import CacheKeyContext, direct_answer_cache_key
 from app.main import create_app
 from app.models import Source
+
+
+class FakeCache:
+    def __init__(self, initial: dict | None = None):
+        self.store = initial or {}
+        self.set_calls = []
+
+    async def get_json(self, key: str):
+        return self.store.get(key)
+
+    async def set_json(self, key: str, value: dict, ttl_seconds: int):
+        self.set_calls.append((key, value, ttl_seconds))
+        self.store[key] = value
 
 
 @pytest.fixture
@@ -57,6 +71,64 @@ async def test_query_json_response(app, mock_graph):
 
 
 @pytest.mark.asyncio
+async def test_query_json_uses_cached_direct_answer(app, mock_graph):
+    """POST /query returns cached direct response when available."""
+    cache_key = direct_answer_cache_key(
+        "What is diversification?",
+        CacheKeyContext(model="test-model", prompt_revision="v1"),
+    )
+    app.state.cache = FakeCache(
+        {
+            cache_key: {
+                "response": "Diversification spreads risk.",
+                "route": "direct",
+                "sources": [],
+                "cache_tier": "direct",
+                "retrieved_at": "2026-03-29T00:00:00+00:00",
+            }
+        }
+    )
+    app.state.model = "test-model"
+    app.state.cache_prompt_revision = "v1"
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "What is diversification?", "stream": False},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["cache_hit"] is True
+    assert data["cache_tier"] == "direct"
+    assert data["route"] == "direct"
+    mock_graph.ainvoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_query_json_writes_cache_for_noncritical_search(app, mock_graph):
+    """POST /query writes search caches for non-critical search queries."""
+    cache = FakeCache()
+    app.state.cache = cache
+    app.state.model = "test-model"
+    app.state.cache_prompt_revision = "v1"
+    app.state.cache_ttl_direct_sec = 86400
+    app.state.cache_ttl_search_results_sec = 900
+    app.state.cache_ttl_search_answer_sec = 300
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "Summarize last week Fed decision", "stream": False},
+        )
+
+    assert response.status_code == 200
+    assert len(cache.set_calls) >= 1
+
+
+@pytest.mark.asyncio
 async def test_query_missing_query(app):
     """POST /query with empty query returns 422."""
     transport = ASGITransport(app=app)
@@ -100,5 +172,6 @@ async def test_query_sse_stream(app):
 
     body = response.text
     assert "event: route" in body
+    assert "event: meta" in body
     assert "event: token" in body
     assert "event: done" in body

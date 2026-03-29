@@ -74,7 +74,9 @@ async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> di
         Dict with assistant message and source list.
     """
     user_query = state["messages"][-1].content
-    search_results = await _invoke_search_tool(search_tool, user_query)
+    search_results = state.get("cached_search_results")
+    if search_results is None:
+        search_results = await _invoke_search_tool(search_tool, user_query)
 
     # Handle both dict and list returns from Tavily
     if isinstance(search_results, dict):
