@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -20,6 +21,25 @@ class FakeCache:
     async def set_json(self, key: str, value: dict, ttl_seconds: int):
         self.set_calls.append((key, value, ttl_seconds))
         self.store[key] = value
+
+
+class AllowGuard:
+    async def enforce(self, request):
+        return None
+
+
+class RejectGuard:
+    def __init__(self, status_code: int, detail: dict, headers: dict | None = None):
+        self.status_code = status_code
+        self.detail = detail
+        self.headers = headers
+
+    async def enforce(self, request):
+        raise HTTPException(
+            status_code=self.status_code,
+            detail=self.detail,
+            headers=self.headers,
+        )
 
 
 @pytest.fixture
@@ -51,6 +71,7 @@ def app(mock_graph):
     application = create_app()
     application.state.graph = mock_graph
     application.state.provider = "test"
+    application.state.guard = AllowGuard()
     return application
 
 
@@ -175,3 +196,63 @@ async def test_query_sse_stream(app):
     assert "event: meta" in body
     assert "event: token" in body
     assert "event: done" in body
+
+
+@pytest.mark.asyncio
+async def test_query_missing_api_key_returns_401(app):
+    """POST /query should return 401 when guard rejects auth."""
+    app.state.guard = RejectGuard(
+        401,
+        {"code": "unauthorized", "message": "Missing or invalid API key."},
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "What is diversification?", "stream": False},
+        )
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "unauthorized"
+
+
+@pytest.mark.asyncio
+async def test_query_rate_limit_returns_429_with_headers(app):
+    """POST /query should return 429 with retry/rate-limit headers."""
+    app.state.guard = RejectGuard(
+        429,
+        {"code": "rate_limit_exceeded", "message": "Too many requests."},
+        headers={
+            "Retry-After": "30",
+            "X-RateLimit-Limit-Minute": "60",
+            "X-RateLimit-Remaining-Minute": "0",
+        },
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "What is diversification?", "stream": False},
+        )
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "30"
+    assert response.headers["x-ratelimit-limit-minute"] == "60"
+
+
+@pytest.mark.asyncio
+async def test_query_rate_limiter_unavailable_returns_503(app):
+    """POST /query should fail closed with 503 when limiter is unavailable."""
+    app.state.guard = RejectGuard(
+        503,
+        {
+            "code": "rate_limiter_unavailable",
+            "message": "Rate-limiting backend unavailable; retry later.",
+        },
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"query": "What is diversification?", "stream": False},
+        )
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "rate_limiter_unavailable"

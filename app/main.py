@@ -47,6 +47,26 @@ async def lifespan(app: FastAPI):
     app.state.cache_ttl_search_results_sec = settings.cache_ttl_search_results_sec
     app.state.cache_ttl_search_answer_sec = settings.cache_ttl_search_answer_sec
     app.state.cache = None
+    app.state.guard = None
+
+    if settings.auth_enabled:
+        try:
+            from app.security import AuthRateLimiter
+
+            app.state.guard = await AuthRateLimiter.create(
+                redis_url=settings.redis_url,
+                api_key_hashes_raw=settings.api_key_hashes,
+                minute_limit=settings.rate_limit_minute,
+                hour_limit=settings.rate_limit_hour,
+            )
+            logger.info("Auth + rate limiter enabled")
+        except Exception:
+            from app.security import UnavailableGuard
+
+            logger.exception(
+                "Auth + rate limiter unavailable; /query will fail closed with 503"
+            )
+            app.state.guard = UnavailableGuard()
 
     if settings.cache_enabled:
         try:

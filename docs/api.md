@@ -6,6 +6,10 @@ Base URL: `http://localhost:8000`
 
 Submit a financial research query to the agent.
 
+Authentication:
+- `Authorization: Bearer <api_key>` (preferred)
+- `X-API-Key: <api_key>` (compatibility fallback)
+
 ### Request
 
 ```json
@@ -67,8 +71,10 @@ data: {"full_response": "The current EUR/USD exchange rate is...", "cache_hit": 
 
 | Code | Description | Example |
 |------|-------------|---------|
+| 401 | Missing/invalid API key | `{"detail": {"code":"unauthorized","message":"Missing or invalid API key."}}` |
+| 429 | Rate limit exceeded | `{"detail": {"code":"rate_limit_exceeded","message":"Too many requests. Please retry later."}}` |
+| 503 | Rate-limiter backend unavailable | `{"detail": {"code":"rate_limiter_unavailable","message":"Rate-limiting backend unavailable; retry later."}}` |
 | 422 | Invalid request body | `{"detail": [{"msg": "String should have at least 1 character"}]}` |
-| 503 | LLM provider unavailable | `{"detail": "LLM provider not available"}` |
 | 504 | Request timeout | `{"detail": "Request timed out"}` |
 | 500 | Internal error | `{"detail": "Internal server error"}` |
 
@@ -78,11 +84,13 @@ data: {"full_response": "The current EUR/USD exchange rate is...", "cache_hit": 
 # JSON response
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api_key>" \
   -d '{"query": "What is the latest Fed interest rate decision?", "stream": false}'
 
 # SSE stream
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <api_key>" \
   -d '{"query": "Current EUR/USD rate", "stream": true}' \
   --no-buffer
 ```

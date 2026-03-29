@@ -14,6 +14,7 @@ def test_create_llm_ollama():
         llm_model="qwen2.5:7b",
         ollama_base_url="http://localhost:11434",
         tavily_api_key="tvly-test",
+        api_key_hashes="local:abc123",
     )
     llm = create_llm(settings)
     from langchain_ollama import ChatOllama
@@ -28,6 +29,7 @@ def test_create_llm_openai():
         llm_model="gpt-4o-mini",
         openai_api_key="sk-test",
         tavily_api_key="tvly-test",
+        api_key_hashes="local:abc123",
     )
     llm = create_llm(settings)
     from langchain_openai import ChatOpenAI
@@ -41,6 +43,7 @@ def test_create_llm_invalid_provider():
         llm_provider="invalid",
         llm_model="some-model",
         tavily_api_key="tvly-test",
+        api_key_hashes="local:abc123",
     )
     with pytest.raises(ValueError, match="Unsupported LLM provider"):
         create_llm(settings)
@@ -50,7 +53,10 @@ def test_settings_defaults():
     """Settings loads defaults correctly."""
     with patch.dict(
         "os.environ",
-        {"TAVILY_API_KEY": "tvly-test"},
+        {
+            "TAVILY_API_KEY": "tvly-test",
+            "API_KEY_HASHES": "local:abc123",
+        },
         clear=False,
     ):
         settings = Settings()
@@ -84,5 +90,22 @@ def test_settings_requires_openai_key_for_openai_provider():
             ValidationError,
             match="OPENAI_API_KEY is required when LLM_PROVIDER=openai",
         ),
+    ):
+        Settings()
+
+
+def test_settings_requires_api_key_hashes_when_auth_enabled():
+    """Settings validation fails without API_KEY_HASHES in auth-enabled mode."""
+    with (
+        patch.dict(
+            "os.environ",
+            {
+                "TAVILY_API_KEY": "tvly-test",
+                "AUTH_ENABLED": "true",
+                "API_KEY_HASHES": "",
+            },
+            clear=False,
+        ),
+        pytest.raises(ValidationError, match="API_KEY_HASHES is required"),
     ):
         Settings()

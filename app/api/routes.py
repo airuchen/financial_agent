@@ -49,6 +49,10 @@ async def query(request: Request, body: QueryRequest):
     cached_meta = {"cache_hit": False, "cache_tier": "none", "retrieved_at": None}
 
     try:
+        guard = getattr(request.app.state, "guard", None)
+        if guard:
+            await guard.enforce(request)
+
         if cache and policy != "critical_market":
             if policy == "direct_knowledge":
                 cached_direct = await cache.get_json(
@@ -119,6 +123,8 @@ async def query(request: Request, body: QueryRequest):
             return QueryResponse(
                 **response_data.model_dump()
             )
+    except HTTPException:
+        raise
     except TimeoutError:
         raise HTTPException(status_code=504, detail="Request timed out") from None
     except Exception:
