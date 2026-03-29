@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-03-29)
+
+### Documentation
+
+- **router**: Document intent-based routing behavior
+  ([`610aed0`](https://github.com/airuchen/financial_agent/commit/610aed0dd411a9cb156d97255fa4eee8b4ca7507))
+
+### Features
+
+- **router**: Use intent classifier with time-critical veto
+  ([`9cffaea`](https://github.com/airuchen/financial_agent/commit/9cffaea42442072b350631cf1408e283fa72438b))
+
+
 ## v1.3.0 (2026-03-29)
 
 ### Bug Fixes
