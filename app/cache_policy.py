@@ -61,6 +61,38 @@ def classify_cache_policy(query: str) -> CacheClass:
     """Classify query by freshness requirements for cache usage."""
     q = normalize_query(query)
 
+    noncritical_keywords = (
+        "summarize",
+        "summary",
+        "regulatory",
+        "regulation",
+        "earnings call",
+        "last week",
+        "this week",
+        "yesterday",
+        "minutes",
+        "filing",
+    )
+    strong_realtime_signals = (
+        "current",
+        "latest",
+        "live",
+        "now",
+        "today",
+        "spot",
+        "intraday",
+        "real-time",
+        "real time",
+    )
+
+    # Historical/non-critical research queries may still mention finance entities
+    # (for example "last week Fed decision"), and should reuse cached search
+    # results unless they explicitly ask for realtime data.
+    if any(k in q for k in noncritical_keywords) and not any(
+        s in q for s in strong_realtime_signals
+    ):
+        return "search_noncritical"
+
     if has_time_critical_finance_signal(q):
         return "critical_market"
 
@@ -76,18 +108,6 @@ def classify_cache_policy(query: str) -> CacheClass:
     if q.startswith(direct_prefixes):
         return "direct_knowledge"
 
-    noncritical_keywords = (
-        "summarize",
-        "summary",
-        "regulatory",
-        "regulation",
-        "earnings call",
-        "last week",
-        "this week",
-        "yesterday",
-        "minutes",
-        "filing",
-    )
     if any(k in q for k in noncritical_keywords):
         return "search_noncritical"
 
