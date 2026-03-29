@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.4 (2026-03-29)
+
+### Bug Fixes
+
+- **actions**: Always deploy docs on main updates
+  ([`10438a1`](https://github.com/airuchen/financial_agent/commit/10438a17af97f8c11cbf3e5a33a0d4ac59ce57b4))
+
+
 ## v1.2.3 (2026-03-29)
 
 ### Bug Fixes
