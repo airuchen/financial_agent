@@ -53,10 +53,10 @@ async def query(request: Request, body: QueryRequest):
                 sources=sources,
             )
     except TimeoutError:
-        raise HTTPException(status_code=504, detail="Request timed out")
+        raise HTTPException(status_code=504, detail="Request timed out") from None
     except Exception:
         logger.exception("Unexpected error processing query")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 async def _stream_response(graph, query: str):
