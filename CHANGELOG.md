@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-03-29)
+
+### Bug Fixes
+
+- **actions**: Always deploy docs on main updates
+  ([`7521cfb`](https://github.com/airuchen/financial_agent/commit/7521cfb9fd48c74aa84f863edb112da5b3265f56))
+
+### Features
+
+- **router**: Add deterministic casual-intent guard for direct routing
+  ([`e6e1010`](https://github.com/airuchen/financial_agent/commit/e6e101030054385f3196bad30291f5a6cc15aada))
+
+
 ## v1.2.3 (2026-03-29)
 
 ### Bug Fixes
