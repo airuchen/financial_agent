@@ -90,6 +90,7 @@ uv run pytest tests/e2e/ -v            # E2E tests (requires running container)
 - [Architecture](docs/architecture.md)
 - [API Reference](docs/api.md)
 - [Configuration Guide](docs/configuration.md)
+- [Production Readiness: Scalability, Security, Reliability](docs/production-readiness.md)
 - [Deployment Architecture](docs/deployment.md)
 - [Architecture Decision Records](docs/adr/)
 

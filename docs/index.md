@@ -7,6 +7,7 @@
 architecture
 api
 configuration
+production-readiness
 deployment
 adr/index
 superpowers/index
