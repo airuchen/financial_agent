@@ -1,3 +1,5 @@
+import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -15,6 +17,7 @@ from app.agent.resilience import (
     SearchRateLimitError,
     SearchTimeoutError,
 )
+from app.api.routes import _stream_response
 from app.cache_policy import (
     CacheKeyContext,
     direct_answer_cache_key,
@@ -54,6 +57,54 @@ class RejectGuard:
             detail=self.detail,
             headers=self.headers,
         )
+
+
+class FakeStreamGraph:
+    def __init__(
+        self,
+        *,
+        pause_after_first_token: asyncio.Event | None = None,
+        final_response: str = "The EUR/USD rate is 1.08 [1].",
+    ):
+        self.pause_after_first_token = pause_after_first_token
+        self.final_response = final_response
+        self.ainvoke = AsyncMock()
+
+    async def astream_events(self, state, version="v2"):
+        yield {
+            "event": "on_chain_end",
+            "name": "router",
+            "data": {"output": {"route": "search"}},
+        }
+        yield {
+            "event": "on_chat_model_stream",
+            "name": "MockModel",
+            "data": {"chunk": SimpleNamespace(content="The ")},
+        }
+        if self.pause_after_first_token is not None:
+            await self.pause_after_first_token.wait()
+        yield {
+            "event": "on_chat_model_stream",
+            "name": "MockModel",
+            "data": {"chunk": SimpleNamespace(content="EUR/USD rate is 1.08 [1].")},
+        }
+        yield {
+            "event": "on_chain_end",
+            "name": "LangGraph",
+            "data": {
+                "output": {
+                    "messages": [SimpleNamespace(content=self.final_response)],
+                    "route": "search",
+                    "sources": [
+                        {
+                            "title": "Reuters",
+                            "url": "https://reuters.com",
+                            "snippet": "EUR/USD at 1.08",
+                        }
+                    ],
+                }
+            },
+        }
 
 
 @pytest.fixture
@@ -260,8 +311,10 @@ async def test_health_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_query_sse_stream(app):
+async def test_query_sse_stream_returns_sse_events(app):
     """POST /query with stream=true returns SSE events."""
+    app.state.graph = FakeStreamGraph()
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
@@ -270,12 +323,53 @@ async def test_query_sse_stream(app):
         )
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]
+    assert "event: route" in response.text
+    assert "event: meta" in response.text
+    assert "event: token" in response.text
+    assert "event: sources" in response.text
+    assert "event: done" in response.text
 
-    body = response.text
-    assert "event: route" in body
-    assert "event: meta" in body
-    assert "event: token" in body
-    assert "event: done" in body
+
+@pytest.mark.asyncio
+async def test_stream_response_is_incremental_and_ordered():
+    """The SSE generator emits route/meta before later chunks arrive."""
+    pause_after_first_chunk = asyncio.Event()
+    graph = FakeStreamGraph(pause_after_first_token=pause_after_first_chunk)
+    state = {
+        "messages": [("human", "Current EUR/USD rate")],
+        "route": "",
+        "sources": [],
+    }
+    cached_meta = {
+        "cache_hit": False,
+        "cache_tier": "none",
+        "retrieved_at": None,
+        "stale_results": False,
+    }
+
+    events = _stream_response(graph, state, cached_meta)
+    first = await events.__anext__()
+    second = await events.__anext__()
+    third = await events.__anext__()
+
+    assert "event: route" in first
+    assert "event: meta" in second
+    assert "event: token" in third
+    assert "The " in third
+
+    next_event = asyncio.create_task(events.__anext__())
+    await asyncio.sleep(0)
+    assert next_event.done() is False
+
+    assert pause_after_first_chunk.is_set() is False
+    pause_after_first_chunk.set()
+
+    fourth = await next_event
+    assert "event: token" in fourth
+
+    remaining = [chunk async for chunk in events]
+    assert "event: sources" in remaining[0]
+    assert "event: done" in remaining[1]
 
 
 @pytest.mark.asyncio

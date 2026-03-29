@@ -1,6 +1,8 @@
 import json
 import logging
 import re
+from collections.abc import AsyncIterator
+from inspect import isawaitable
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -109,16 +111,10 @@ def build_untrusted_search_context(sources) -> str:
     return "\n\n".join(context_parts)
 
 
-async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
-    """Classify user query as 'search' or 'direct'.
-
-    Args:
-        state: Current agent state with user message.
-        llm: The LLM to use for classification.
-
-    Returns:
-        Dict with 'route' key set to 'search' or 'direct'.
-    """
+async def router_node(
+    state: AgentState, llm: BaseChatModel, config: dict[str, Any] | None = None
+) -> dict:
+    """Classify user query as 'search' or 'direct'."""
     user_query = state["messages"][-1].content
     if has_time_critical_finance_signal(user_query):
         logger.info(
@@ -130,7 +126,7 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
         "messages"
     ]
     response = await retry_async(
-        lambda: llm.ainvoke(messages),
+        lambda: _invoke_llm_ainvoke(llm, messages, config=config),
         service="llm",
     )
 
@@ -162,43 +158,38 @@ def _route_from_intent(intent: str | None) -> str | None:
     return intent_to_route.get(intent)
 
 
-async def direct_response(state: AgentState, llm: BaseChatModel) -> dict:
-    """Generate a direct response without web search.
-
-    Args:
-        state: Current agent state with user message.
-        llm: The LLM to use for generation.
-
-    Returns:
-        Dict with assistant message added to messages.
-    """
+async def direct_response(
+    state: AgentState, llm: BaseChatModel, config: dict[str, Any] | None = None
+) -> dict:
+    """Generate a direct response without web search."""
     messages = [SystemMessage(content=DIRECT_RESPONSE_SYSTEM_PROMPT)] + state[
         "messages"
     ]
-    response = await retry_async(lambda: llm.ainvoke(messages), service="llm")
+    if _token_streaming_enabled(config):
+        response = await retry_async(
+            lambda: _stream_llm_response(llm, messages, config=config),
+            service="llm",
+        )
+    else:
+        response = await retry_async(
+            lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+            service="llm",
+        )
     return {"messages": [response], "sources": []}
 
 
-async def search_agent(state: AgentState, llm: BaseChatModel, search_tool) -> dict:
-    """Execute web search and synthesize results.
-
-    Uses Tavily to search the web, then asks the LLM to synthesize
-    the results into a coherent response with source attribution.
-
-    Args:
-        state: Current agent state with user message.
-        llm: The LLM to use for synthesis.
-        search_tool: A Tavily search tool instance.
-
-    Returns:
-        Dict with assistant message and source list.
-    """
+async def search_agent(
+    state: AgentState,
+    llm: BaseChatModel,
+    search_tool,
+    config: dict[str, Any] | None = None,
+) -> dict:
+    """Execute web search and synthesize results."""
     user_query = state["messages"][-1].content
     search_results = state.get("cached_search_results")
     if search_results is None:
         search_results = await _invoke_search_tool(search_tool, user_query)
 
-    # Handle both dict and list returns from Tavily
     if isinstance(search_results, dict):
         results_list = search_results.get("results", [])
     elif isinstance(search_results, list):
@@ -232,17 +223,21 @@ Search results:
 {instruction}"""
 
     messages = [SystemMessage(content=synthesis_prompt)] + state["messages"]
-    response = await retry_async(lambda: llm.ainvoke(messages), service="llm")
+    if _token_streaming_enabled(config):
+        response = await retry_async(
+            lambda: _stream_llm_response(llm, messages, config=config),
+            service="llm",
+        )
+    else:
+        response = await retry_async(
+            lambda: _invoke_llm_ainvoke(llm, messages, config=config),
+            service="llm",
+        )
     return {"messages": [response], "sources": sources}
 
 
 async def _invoke_search_tool(search_tool: Any, user_query: str) -> Any:
-    """Call the configured search tool across supported async interfaces.
-
-    Supports both:
-    - LangChain-style tools exposing `ainvoke({"query": ...})`
-    - Tavily Async client exposing `search(query=...)`
-    """
+    """Call the configured search tool across supported async interfaces."""
     if hasattr(search_tool, "ainvoke"):
         return await retry_async(
             lambda: search_tool.ainvoke({"query": user_query}),
@@ -258,18 +253,62 @@ async def _invoke_search_tool(search_tool: Any, user_query: str) -> Any:
     )
 
 
+async def _stream_llm_response(
+    llm: BaseChatModel,
+    messages: list[Any],
+    config: dict[str, Any] | None = None,
+) -> AIMessage:
+    """Consume a streamed model response and rebuild the final message."""
+    stream = llm.astream(messages, config=config)
+    if isinstance(stream, AsyncIterator) or hasattr(stream, "__aiter__"):
+        chunks: list[str] = []
+        async for chunk in stream:
+            content = getattr(chunk, "content", "")
+            if isinstance(content, str) and content:
+                chunks.append(content)
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, str) and part:
+                        chunks.append(part)
+                    elif isinstance(part, dict):
+                        chunks.append(str(part.get("text", part.get("content", ""))))
+        return AIMessage(content="".join(chunks))
+
+    if isawaitable(stream):
+        maybe_response = await stream
+        text = getattr(maybe_response, "content", "")
+        if isinstance(text, str) and text:
+            return AIMessage(content=text)
+
+    response = await _invoke_llm_ainvoke(llm, messages, config=config)
+    content = getattr(response, "content", "")
+    if not isinstance(content, str):
+        content = str(content)
+    return AIMessage(content=content)
+
+
+async def _invoke_llm_ainvoke(
+    llm: BaseChatModel,
+    messages: list[Any],
+    config: dict[str, Any] | None = None,
+):
+    """Invoke LLM once, forwarding config when provided."""
+    if config is not None:
+        return await llm.ainvoke(messages, config=config)
+    return await llm.ainvoke(messages)
+
+
+def _token_streaming_enabled(config: dict[str, Any] | None) -> bool:
+    if not config:
+        return False
+    configurable = config.get("configurable", {})
+    if isinstance(configurable, dict):
+        return bool(configurable.get("stream_tokens"))
+    return False
+
+
 async def format_response(state: AgentState) -> dict:
-    """Normalize response format and append source references.
-
-    For search route: appends a numbered references list.
-    For direct route: passes through as-is.
-
-    Args:
-        state: Current agent state with response message and sources.
-
-    Returns:
-        Dict with formatted message.
-    """
+    """Normalize response format and append source references."""
     if not state.get("sources"):
         return {}
 
