@@ -54,8 +54,12 @@ jobs:
       contents: read
       pages: write
       id-token: write
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
       - name: Install Doxygen
         run: sudo apt-get install -y doxygen graphviz
       - name: Build docs
