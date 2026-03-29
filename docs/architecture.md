@@ -2,7 +2,7 @@
 
 ## Runtime Flow
 
-```{mermaid}
+```mermaid
 flowchart TD
     C[Client] -->|POST /query| API[FastAPI /query]
     C -->|GET /health| H[FastAPI /health]
@@ -39,7 +39,7 @@ flowchart TD
 
 ## LangGraph Node Flow
 
-```{mermaid}
+```mermaid
 flowchart LR
     START([START]) --> router[router_node]
     router -->|route=search| search[search_agent]

@@ -93,14 +93,3 @@ uv run pytest tests/e2e/ -v            # E2E tests (requires running container)
 - [Deployment Architecture](docs/deployment.md)
 - [Architecture Decision Records](docs/adr/)
 
-## Architecture
-
-See [Architecture](docs/architecture.md) for Mermaid diagrams of the runtime and
-LangGraph node flow.
-
-Routing behavior:
-- Time-critical finance signals are deterministically routed to `search`.
-- Other queries are intent-classified by the LLM (`casual`, `direct_finance`, `search_finance`) and then mapped to route.
-- Search responses are formatted with numbered source references.
-
-See [ADR-001](docs/adr/001-langgraph-explicit-router.md) for the routing design rationale.
