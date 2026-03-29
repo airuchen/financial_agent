@@ -2,6 +2,7 @@ from app.cache_policy import (
     CacheKeyContext,
     classify_cache_policy,
     direct_answer_cache_key,
+    has_time_critical_finance_signal,
     is_casual_query,
     search_answer_cache_key,
     search_results_cache_key,
@@ -50,3 +51,10 @@ def test_is_casual_query_positive_and_negative_cases():
     assert is_casual_query("Good morning!")
     assert is_casual_query("what's up?")
     assert not is_casual_query("What is the current EUR/USD?")
+
+
+def test_mixed_greeting_with_price_is_time_critical():
+    query = "hi, could you tell me about the current stock price?"
+    assert has_time_critical_finance_signal(query)
+    assert not is_casual_query(query)
+    assert classify_cache_policy(query) == "critical_market"

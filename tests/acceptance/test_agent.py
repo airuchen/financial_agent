@@ -50,16 +50,19 @@ def _mock_search_tool(results: list[dict]) -> AsyncMock:
     return tool
 
 
+def _mock_llm(responses: list[str]) -> AsyncMock:
+    """Create a mock LLM that returns a sequence of AIMessage responses."""
+    llm = AsyncMock()
+    side_effects = [AIMessage(content=text) for text in responses]
+    llm.ainvoke = AsyncMock(side_effect=side_effects)
+    return llm
+
+
 @pytest.mark.asyncio
 async def test_graph_search_path():
     """Search route produces a sourced final answer."""
-    router_response = json.dumps(
-        {"route": "search", "reasoning": "Asks for current data"}
-    )
-    llm = MockStreamingChatModel(
-        responses=[router_response],
-        stream_chunks=["The EUR/USD rate is 1.08 [1]."],
-    )
+    agent_response = "The EUR/USD rate is 1.08 [1]."
+    llm = _mock_llm([agent_response])
 
     search_results = [
         {
@@ -86,12 +89,9 @@ async def test_graph_search_path():
 @pytest.mark.asyncio
 async def test_graph_direct_path():
     """Direct route: router -> direct_response -> format_response with no sources."""
-    router_response = json.dumps({"route": "direct", "reasoning": "Greeting"})
+    router_response = json.dumps({"intent": "casual", "reasoning": "Greeting"})
     direct_answer = "Hello! How can I help with your financial research?"
-    llm = MockStreamingChatModel(
-        responses=[router_response],
-        stream_chunks=[direct_answer],
-    )
+    llm = _mock_llm([router_response, direct_answer])
 
     search_tool = _mock_search_tool([])
 
