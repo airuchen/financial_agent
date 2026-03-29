@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,6 +10,14 @@ from app.config import Settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _parse_cors_origins(origins: str) -> list[str]:
+    return [o.strip() for o in origins.split(",") if o.strip()]
+
+
+def _cors_allow_credentials() -> bool:
+    return os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
 
 @asynccontextmanager
@@ -60,8 +69,10 @@ def create_app(use_lifespan: bool = False) -> FastAPI:
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=_parse_cors_origins(
+            os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+        ),
+        allow_credentials=_cors_allow_credentials(),
         allow_methods=["*"],
         allow_headers=["*"],
     )

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -62,6 +62,15 @@ async def test_query_missing_query(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/query", json={"query": ""})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_query_too_long(app):
+    """POST /query over max query length returns 422."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/query", json={"query": "x" * 2001})
     assert response.status_code == 422
 
 
