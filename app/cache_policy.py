@@ -14,29 +14,36 @@ class CacheKeyContext:
     prompt_revision: str
 
 
-def is_casual_query(query: str) -> bool:
-    """Detect greeting/small-talk queries that should never trigger web search."""
+def has_time_critical_finance_signal(query: str) -> bool:
+    """Detect clearly time-sensitive finance queries that must route to search."""
     q = normalize_query(query)
-
-    finance_signals = (
+    critical_signals = (
+        "current",
+        "latest",
+        "live",
+        "now",
+        "today",
+        "spot",
+        "intraday",
+        "real-time",
+        "real time",
         "price",
         "quote",
         "stock",
-        "forex",
+        "fx rate",
         "eur/usd",
+        "usd/eur",
         "exchange rate",
-        "fed",
-        "inflation",
-        "gdp",
-        "earnings",
-        "regulatory",
-        "filing",
-        "market",
-        "index",
-        "bond",
-        "yield",
+        "fed decision",
+        "market open",
     )
-    if any(signal in q for signal in finance_signals):
+    return any(signal in q for signal in critical_signals)
+
+
+def is_casual_query(query: str) -> bool:
+    """Detect greeting/small-talk queries that should never trigger web search."""
+    q = normalize_query(query)
+    if has_time_critical_finance_signal(q):
         return False
 
     casual_patterns = (
@@ -54,25 +61,7 @@ def classify_cache_policy(query: str) -> CacheClass:
     """Classify query by freshness requirements for cache usage."""
     q = normalize_query(query)
 
-    critical_keywords = (
-        "current",
-        "latest",
-        "live",
-        "now",
-        "today",
-        "spot",
-        "intraday",
-        "real-time",
-        "real time",
-        "quote",
-        "price",
-        "eur/usd",
-        "usd/eur",
-        "fx rate",
-        "exchange rate",
-        "stock price",
-    )
-    if any(k in q for k in critical_keywords):
+    if has_time_critical_finance_signal(q):
         return "critical_market"
 
     if is_casual_query(q):

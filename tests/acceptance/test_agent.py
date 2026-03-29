@@ -25,11 +25,8 @@ def _mock_search_tool(results: list[dict]) -> AsyncMock:
 @pytest.mark.asyncio
 async def test_graph_search_path():
     """Search route produces a sourced final answer."""
-    router_response = json.dumps(
-        {"route": "search", "reasoning": "Asks for current data"}
-    )
     agent_response = "The EUR/USD rate is 1.08 [1]."
-    llm = _mock_llm([router_response, agent_response])
+    llm = _mock_llm([agent_response])
 
     search_results = [
         {
@@ -56,8 +53,9 @@ async def test_graph_search_path():
 @pytest.mark.asyncio
 async def test_graph_direct_path():
     """Direct route: router -> direct_response -> format_response with no sources."""
+    router_response = json.dumps({"intent": "casual", "reasoning": "Greeting"})
     direct_answer = "Hello! How can I help with your financial research?"
-    llm = _mock_llm([direct_answer])
+    llm = _mock_llm([router_response, direct_answer])
 
     search_tool = _mock_search_tool([])
 
