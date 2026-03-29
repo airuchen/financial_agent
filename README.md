@@ -75,6 +75,12 @@ curl -X POST http://localhost:8000/query \
 
 # Health check
 curl http://localhost:8000/health
+
+# Interactive chat client (streaming)
+uv run python tools/chat.py
+
+# With custom URL and API key
+uv run python tools/chat.py --url http://localhost:8000 --api-key your-key
 ```
 
 ## Testing
