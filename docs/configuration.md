@@ -8,6 +8,7 @@ All configuration is via environment variables. Copy `.env.example` to `.env` fo
 |----------|---------|----------|-------------|
 | `LLM_PROVIDER` | `ollama` | no | LLM backend: `ollama` or `openai` |
 | `LLM_MODEL` | `qwen2.5:7b` | no | Model name for the chosen provider |
+| `LLM_TEMPERATURE` | `0` | no | Sampling temperature; keep low for deterministic routing |
 | `LLM_TIMEOUT` | `30` | no | LLM request timeout in seconds |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | no | Ollama API endpoint |
 | `OPENAI_API_KEY` | — | if openai | OpenAI API key |

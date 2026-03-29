@@ -62,6 +62,7 @@ def test_settings_defaults():
         settings = Settings()
         assert settings.llm_provider == "ollama"
         assert settings.llm_model == "qwen2.5:7b"
+        assert settings.llm_temperature == 0.0
         assert settings.llm_timeout == 30
 
 

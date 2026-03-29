@@ -11,6 +11,7 @@ from app.agent.prompts import (
     SEARCH_AGENT_SYSTEM_PROMPT,
 )
 from app.agent.state import AgentState
+from app.cache_policy import is_casual_query
 from app.utils import extract_sources_from_tavily
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,11 @@ async def router_node(state: AgentState, llm: BaseChatModel) -> dict:
     Returns:
         Dict with 'route' key set to 'search' or 'direct'.
     """
+    user_query = state["messages"][-1].content
+    if is_casual_query(user_query):
+        logger.info("Route decision: direct — deterministic casual-intent guard match")
+        return {"route": "direct"}
+
     messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
     response = await llm.ainvoke(messages)
 

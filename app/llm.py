@@ -21,6 +21,7 @@ def create_llm(settings: Settings) -> BaseChatModel:
         return ChatOllama(
             model=settings.llm_model,
             base_url=settings.ollama_base_url,
+            temperature=settings.llm_temperature,
             timeout=settings.llm_timeout,
         )
     elif settings.llm_provider == "openai":
@@ -29,6 +30,7 @@ def create_llm(settings: Settings) -> BaseChatModel:
         return ChatOpenAI(
             model=settings.llm_model,
             api_key=settings.openai_api_key,
+            temperature=settings.llm_temperature,
             timeout=settings.llm_timeout,
         )
     else:

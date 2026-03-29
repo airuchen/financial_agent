@@ -56,9 +56,8 @@ async def test_graph_search_path():
 @pytest.mark.asyncio
 async def test_graph_direct_path():
     """Direct route: router -> direct_response -> format_response with no sources."""
-    router_response = json.dumps({"route": "direct", "reasoning": "Greeting"})
     direct_answer = "Hello! How can I help with your financial research?"
-    llm = _mock_llm([router_response, direct_answer])
+    llm = _mock_llm([direct_answer])
 
     search_tool = _mock_search_tool([])
 
