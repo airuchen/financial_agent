@@ -48,9 +48,7 @@ jobs:
           docker push ghcr.io/${{ github.repository }}:latest
 
   docs:
-    if: ${{ vars.ENABLE_PAGES_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
-    needs: release
     permissions:
       contents: read
       pages: write
