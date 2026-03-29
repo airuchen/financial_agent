@@ -24,7 +24,7 @@ def _mock_search_tool(results: list[dict]) -> AsyncMock:
 
 @pytest.mark.asyncio
 async def test_graph_search_path():
-    """Search route: router -> search_agent -> format_response produces sourced answer."""
+    """Search route produces a sourced final answer."""
     router_response = json.dumps(
         {"route": "search", "reasoning": "Asks for current data"}
     )
